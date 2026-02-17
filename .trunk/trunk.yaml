@@ -29,6 +29,7 @@ lint:
         - ".claude/**"
         - ".codex/**"
         - ".entire/**"
+        - ".trunk/**"
         - ".mise/**"
         - ".tools/**"
         - "scratchpad/**"
