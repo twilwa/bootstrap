@@ -137,3 +137,12 @@ dist
 # Vite logs files
 vite.config.js.timestamp-*
 vite.config.ts.timestamp-*
+
+# Local bootstrap/runtime data
+.mise/
+.tools/
+.jj/
+
+# Temporary agent artifacts
+scratchpad/*
+!scratchpad/.gitkeep

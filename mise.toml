@@ -1,0 +1,66 @@
+[env]
+_.path = ["./.tools/bin"]
+UV_PYTHON_INSTALL_DIR = ".tools/uv/python"
+
+[tools]
+go = "latest"
+rust = "latest"
+bun = "latest"
+uv = "latest"
+jj = "latest"
+trunk = "latest"
+"npm:@ast-grep/cli" = "latest"
+"npm:@fission-ai/openspec" = "latest"
+
+[tasks.bootstrap]
+description = "Install repo-local tools and initialize this repo"
+run = "./bootstrap.sh"
+
+[tasks.install]
+description = "Install/update tools only"
+run = "./bootstrap.sh --install-only --non-interactive"
+
+[tasks.init]
+description = "Run repo initialization only"
+run = "./bootstrap.sh --init-only --non-interactive"
+
+[tasks.typescript_latest]
+description = "Install latest TypeScript toolchain via Bun"
+run = '''
+set -euo pipefail
+mkdir -p .tools/typescript .tools/bin
+if [ ! -f .tools/typescript/package.json ]; then
+  cat > .tools/typescript/package.json <<'JSON'
+{
+  "name": "bootstrap-typescript",
+  "private": true
+}
+JSON
+fi
+bun add --cwd .tools/typescript typescript@latest tsx@latest @types/node@latest
+ln -sf "$PWD/.tools/typescript/node_modules/.bin/tsc" "$PWD/.tools/bin/tsc"
+ln -sf "$PWD/.tools/typescript/node_modules/.bin/tsx" "$PWD/.tools/bin/tsx"
+'''
+
+[tasks.python_latest]
+description = "Install latest CPython via uv"
+run = '''
+set -euo pipefail
+mkdir -p .tools/uv/python .tools/bin
+latest_py="$(UV_PYTHON_INSTALL_DIR="$PWD/.tools/uv/python" uv python list | awk '/^cpython-[0-9]+\\.[0-9]+\\.[0-9]+-/ {sub(/^cpython-/, "", $1); split($1, parts, "-"); print parts[1]; exit}')"
+if [ -z "$latest_py" ]; then
+  latest_py="3"
+fi
+UV_PYTHON_INSTALL_DIR="$PWD/.tools/uv/python" uv python install "$latest_py"
+py="$(UV_PYTHON_INSTALL_DIR="$PWD/.tools/uv/python" uv python find "$latest_py")"
+ln -sf "$py" "$PWD/.tools/bin/python"
+ln -sf "$py" "$PWD/.tools/bin/python3"
+'''
+
+[tasks.check]
+description = "Run Trunk checks"
+run = "trunk check --all"
+
+[tasks.fmt]
+description = "Run Trunk formatter"
+run = "trunk fmt"
