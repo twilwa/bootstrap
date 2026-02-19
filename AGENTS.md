@@ -117,6 +117,20 @@ Names must describe domain behavior, not implementation history.
   - `sg run -p '<pattern>' -r '<rewrite>' <path>`
   - `sg scan`
 
+### Linear (`linctl`)
+
+- Purpose: optional human-scale planning context and supplemental directives.
+- Policy:
+  - Beads (`bd`) is the primary execution audit log for agent work.
+  - Linear can hold higher-level planning, prioritization, or external directives.
+  - At task start, check in with the human on whether/how Linear is used for this repo.
+  - If Linear is active, reconcile it with `bd` by creating/updating `bd` items so execution stays auditable.
+- Useful commands:
+  - `linctl whoami`
+  - `linctl issue list`
+  - `linctl issue view <id>`
+  - `linctl project list`
+
 ### Jujutsu (`jj`) quickref for multi-agent workflows
 
 - `jj st` / `jj log` for status/history.
