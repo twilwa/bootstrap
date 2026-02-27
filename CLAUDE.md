@@ -1,5 +1,31 @@
 # Agent Operating Manual
 
+<!--toc:start-->
+
+- [Agent Operating Manual](#agent-operating-manual)
+  - [Primary Model](#primary-model)
+  - [Work Modes](#work-modes)
+    - [Strict Mode (default)](#strict-mode-default)
+    - [Yolo Mode (explicit opt-in)](#yolo-mode-explicit-opt-in)
+  - [Mandatory Development Flow (Strict)](#mandatory-development-flow-strict)
+  - [Naming and Comments](#naming-and-comments)
+    - [Naming rules](#naming-rules)
+    - [Preferred style](#preferred-style)
+    - [Comments](#comments)
+  - [Testing Policy](#testing-policy)
+  - [Tooling Quick Reference](#tooling-quick-reference)
+    - [OpenSpec](#openspec)
+    - [beads (`br`) and beads viewer (`bv`)](#beads-br-and-beads-viewer-bv)
+    - [sem](#sem)
+    - [ast-grep (`sg`)](#ast-grep-sg)
+    - [When deploying subagents that modify the codebase](#when-deploying-subagents-that-modify-the-codebase)
+    - [When subagents have completed their work (primary/orchestrator)](#when-subagents-have-completed-their-work-primaryorchestrator)
+    - [mise](#mise)
+    - [trunk](#trunk)
+  - [Workspace Hygiene](#workspace-hygiene)
+  - [Session Completion Protocol](#session-completion-protocol)
+  <!--toc:end-->
+
 This file defines how agents should execute work in this repository.
 
 ## Primary Model
@@ -38,9 +64,9 @@ For straightforward work where speed matters more than incremental ceremony.
    - Write failing tests first.
    - Implement minimal code to pass.
    - Refactor while keeping suite green.
-4. bd planning:
+4. br planning:
    - Create maximally parallelizable workstreams.
-   - Track dependencies explicitly so `bd ready` surfaces unblocked tasks.
+   - Track dependencies explicitly so `br ready` surfaces unblocked tasks.
 5. Structure-first scaffolding:
    - Start with function names, variable names, and docstrings/signatures.
    - Run explore/research subagents to validate naming and conventions.
@@ -89,16 +115,16 @@ Names must describe domain behavior, not implementation history.
 - Purpose: spec-first planning and change control.
 - Typical flow: `/opsx:new` -> `/opsx:ff` or `/opsx:continue` -> `/opsx:apply` -> `/opsx:archive`.
 
-### beads (`bd`) and beads viewer (`bv`)
+### beads (`br`) and beads viewer (`bv`)
 
 - Purpose: dependency-aware issue graph and execution planning.
 - Core commands:
-  - `bd ready`
-  - `bd create "..."`
-  - `bd show <id>`
-  - `bd update <id> --status in_progress`
-  - `bd close <id>`
-  - `bd sync`
+  - `br ready`
+  - `br create "..."`
+  - `br show <id>`
+  - `br update <id> --status in_progress`
+  - `br close <id>`
+  - `br sync --flush-only` (then `git add .beads/ && git commit` manually)
 - `bv` is the visualization/TUI companion for work graph review.
 
 ### sem
@@ -117,14 +143,23 @@ Names must describe domain behavior, not implementation history.
   - `sg run -p '<pattern>' -r '<rewrite>' <path>`
   - `sg scan`
 
-### Jujutsu (`jj`) quickref for multi-agent workflows
+### When deploying subagents that modify the codebase
 
-- `jj st` / `jj log` for status/history.
-- `jj new` to create a new change context.
-- `jj parallelize` to split stacked changes into siblings for parallel work.
-- `jj squash` / `jj rebase` to consolidate and reorder work.
-- `jj desc` to keep descriptions accurate for handoff.
-- `jj git export` / `jj git push` when syncing with git remotes.
+    •	 jj workspace add <dir>  to create an isolated working copy per subagent.
+    •	 jj st  /  jj log  to inspect workspace status and history before editing.
+    •	 jj new  to create a dedicated change context on the assigned base revision.
+    •	`jj desc  to keep change descriptions clear and up to date for later review.
+    •	Avoid  jj parallelize  /  jj squash  /  jj rebase  unless explicitly instructed.
+    •	Avoid direct  git  commands; syncing is handled by the primary/orchestrator agent.
+
+### When subagents have completed their work (primary/orchestrator)
+
+    •	 jj st  /  jj log  to review subagent workspaces, diffs, and test status.
+    •	 jj parallelize <revset>  to fan out stacked exploratory changes into sibling branches when a solution needs restructuring or comparison.
+    •	 jj squash  to consolidate selected revisions into a single linear feature change.
+    •	 jj rebase  to move finalized changes onto  trunk()  /  main  or other target bases.
+    •	 jj desc  to normalize commit messages and annotate which subagent produced which change.
+    •	 jj git export  /  jj git push  to sync the curated, final history to Git remotes.
 
 ### mise
 
@@ -152,12 +187,13 @@ Names must describe domain behavior, not implementation history.
 
 Before handoff/end of session:
 
-1. Create `bd` issues for remaining follow-up work.
+1. Create `br` issues for remaining follow-up work.
 2. Run tests/lint/verification for changed code.
-3. Update issue states in `bd`.
+3. Update issue states in `br`.
 4. Sync and push:
    - `git pull --rebase`
-   - `bd sync`
+   - `br sync --flush-only`
+   - `git add .beads/ && git commit -m "beads sync"`
    - `git push`
    - `git status` must be up to date with origin.
 5. Provide concise handoff notes with risks and next steps.

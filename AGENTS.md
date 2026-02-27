@@ -38,9 +38,9 @@ For straightforward work where speed matters more than incremental ceremony.
    - Write failing tests first.
    - Implement minimal code to pass.
    - Refactor while keeping suite green.
-4. bd planning:
+4. br planning:
    - Create maximally parallelizable workstreams.
-   - Track dependencies explicitly so `bd ready` surfaces unblocked tasks.
+   - Track dependencies explicitly so `br ready` surfaces unblocked tasks.
 5. Structure-first scaffolding:
    - Start with function names, variable names, and docstrings/signatures.
    - Run explore/research subagents to validate naming and conventions.
@@ -89,16 +89,16 @@ Names must describe domain behavior, not implementation history.
 - Purpose: spec-first planning and change control.
 - Typical flow: `/opsx:new` -> `/opsx:ff` or `/opsx:continue` -> `/opsx:apply` -> `/opsx:archive`.
 
-### beads (`bd`) and beads viewer (`bv`)
+### beads (`br`) and beads viewer (`bv`)
 
 - Purpose: dependency-aware issue graph and execution planning.
 - Core commands:
-  - `bd ready`
-  - `bd create "..."`
-  - `bd show <id>`
-  - `bd update <id> --status in_progress`
-  - `bd close <id>`
-  - `bd sync`
+  - `br ready`
+  - `br create "..."`
+  - `br show <id>`
+  - `br update <id> --status in_progress`
+  - `br close <id>`
+  - `br sync --flush-only` (then `git add .beads/ && git commit` manually)
 - `bv` is the visualization/TUI companion for work graph review.
 
 ### sem
@@ -121,10 +121,10 @@ Names must describe domain behavior, not implementation history.
 
 - Purpose: optional human-scale planning context and supplemental directives.
 - Policy:
-  - Beads (`bd`) is the primary execution audit log for agent work.
+  - Beads (`br`) is the primary execution audit log for agent work.
   - Linear can hold higher-level planning, prioritization, or external directives.
   - At task start, check in with the human on whether/how Linear is used for this repo.
-  - If Linear is active, reconcile it with `bd` by creating/updating `bd` items so execution stays auditable.
+  - If Linear is active, reconcile it with `br` by creating/updating `br` items so execution stays auditable.
 - Useful commands:
   - `linctl whoami`
   - `linctl issue list`
@@ -166,12 +166,13 @@ Names must describe domain behavior, not implementation history.
 
 Before handoff/end of session:
 
-1. Create `bd` issues for remaining follow-up work.
+1. Create `br` issues for remaining follow-up work.
 2. Run tests/lint/verification for changed code.
-3. Update issue states in `bd`.
+3. Update issue states in `br`.
 4. Sync and push:
    - `git pull --rebase`
-   - `bd sync`
+   - `br sync --flush-only`
+   - `git add .beads/ && git commit -m "beads sync"`
    - `git push`
    - `git status` must be up to date with origin.
 5. Provide concise handoff notes with risks and next steps.

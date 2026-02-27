@@ -5,7 +5,7 @@ This repository is a reusable template for human+agent software delivery.
 It is designed around:
 
 - spec-first delivery (`OpenSpec`)
-- dependency-aware work planning (`bd`)
+- dependency-aware work planning (`br`)
 - strong testing discipline (TDD + broad test coverage)
 - repo-local tooling (`.mise` + `.tools/bin`)
 
@@ -58,8 +58,8 @@ trunk check --all
 trunk fmt
 
 # Work tracking
-bd ready
-bd create "<task>"
+br ready
+br create "<task>"
 
 # Semantic review
 sem diff
@@ -71,7 +71,7 @@ sem diff --staged
 1. Create or update spec artifacts in `openspec/` first.
 2. Approve intent before coding.
 3. Write failing tests first (TDD red/green/refactor).
-4. Use `bd` dependencies to parallelize safely.
+4. Use `br` dependencies to parallelize safely.
 5. Validate with test suite + `sem diff` before merge/push.
 
 ## Tool Stack (Researched Docs)
@@ -79,7 +79,7 @@ sem diff --staged
 The following links come from official docs/repos for this stack.
 
 - OpenSpec: [openspec.dev](https://openspec.dev/) | [GitHub](https://github.com/Fission-AI/OpenSpec)
-- beads (`bd`): [Docs](https://steveyegge.github.io/beads/) | [GitHub](https://github.com/steveyegge/beads)
+- beads (`br`): [GitHub](https://github.com/Dicklesworthstone/beads_rust)
 - beads viewer (`bv`): [GitHub](https://github.com/Dicklesworthstone/beads_viewer)
 - mise: [Docs](https://mise.jdx.dev/) | [CLI reference](https://mise.jdx.dev/cli/)
 - Entire CLI: [Docs](https://docs.entire.io/quickstart) | [GitHub](https://github.com/entireio/cli)
