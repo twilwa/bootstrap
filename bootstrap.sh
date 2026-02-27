@@ -203,8 +203,50 @@ ensure_sem_binary() {
 	fi
 }
 
+ensure_br_binary() {
+	if [[ -x "$BIN_DIR/br" ]]; then
+		return
+	fi
+
+	local existing
+	existing="$(find_system_binary br)"
+	if [[ -n "$existing" && -x "$existing" ]]; then
+		log "Linking existing br from $existing"
+		ln -sf "$existing" "$BIN_DIR/br"
+		return
+	fi
+
+	local version="v0.1.20"
+	local os arch asset url tmpdir
+
+	case "$(uname -s)" in
+		Darwin) os="darwin" ;;
+		Linux) os="linux" ;;
+		*) die "Unsupported OS for br: $(uname -s)" ;;
+	esac
+
+	case "$(uname -m)" in
+		x86_64|amd64) arch="amd64" ;;
+		arm64|aarch64) arch="arm64" ;;
+		*) die "Unsupported architecture for br: $(uname -m)" ;;
+	esac
+
+	asset="br-${version}-${os}_${arch}.tar.gz"
+	url="https://github.com/Dicklesworthstone/beads_rust/releases/download/${version}/${asset}"
+
+	tmpdir="$(mktemp -d)"
+	trap 'rm -rf "$tmpdir"' RETURN
+
+	log "Installing br from release ${version} (${os}_${arch})"
+	curl -fsSL "$url" -o "$tmpdir/$asset"
+	tar -xzf "$tmpdir/$asset" -C "$tmpdir"
+
+	[[ -x "$tmpdir/br" ]] || die "br binary missing in release artifact"
+	install -m 0755 "$tmpdir/br" "$BIN_DIR/br"
+}
+
 ensure_extra_tools() {
-	ensure_go_binary bd github.com/steveyegge/beads/cmd/bd 0
+	ensure_br_binary
 	ensure_go_binary bv github.com/Dicklesworthstone/beads_viewer/cmd/bv
 	ensure_go_binary entire github.com/entireio/cli/cmd/entire
 	ensure_go_binary linctl github.com/dorkitude/linctl
@@ -292,7 +334,7 @@ init_beads() {
 	fi
 
 	log "Initializing beads"
-	"$BIN_DIR/bd" init -q
+	"$BIN_DIR/br" init
 }
 
 init_entire() {
@@ -338,7 +380,7 @@ post_init_notes() {
 
 verify_installs() {
 	local missing=0
-	local tools=(mise go bun uv openspec bd bv entire jj trunk linctl sem sg ast-grep)
+	local tools=(mise go bun uv openspec br bv entire jj trunk linctl sem sg ast-grep)
 
 	for tool in "${tools[@]}"; do
 		if [[ ! -x "$BIN_DIR/$tool" ]]; then
