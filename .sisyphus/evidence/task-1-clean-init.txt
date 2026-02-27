@@ -1,0 +1,26 @@
+TMPDIR=/tmp/br-init-test-HIGJyd
+Prefix set to: br-init-test-higjyd
+Initialized beads workspace in .beads/
+total 1176
+drwxr-xr-x  8 anon  wheel     256 Feb 26 17:28 .
+drwx------  3 anon  wheel      96 Feb 26 17:28 ..
+-rw-r--r--  1 anon  wheel      87 Feb 26 17:28 .gitignore
+-rw-r--r--  1 anon  wheel  192512 Feb 26 17:28 beads.db
+-rw-r--r--  1 anon  wheel  395552 Feb 26 17:28 beads.db-wal
+-rw-r--r--  1 anon  wheel     109 Feb 26 17:28 config.yaml
+-rw-r--r--  1 anon  wheel       0 Feb 26 17:28 issues.jsonl
+-rw-r--r--  1 anon  wheel      62 Feb 26 17:28 metadata.json
+.beads/.gitignore
+.beads/beads.db
+.beads/beads.db-wal
+.beads/config.yaml
+.beads/issues.jsonl
+.beads/metadata.json
+# Beads Project Configuration
+# issue_prefix: br-init-test-higjyd
+# default_priority: 2
+# default_type: task
+{
+  "database": "beads.db",
+  "jsonl_export": "issues.jsonl"
+}

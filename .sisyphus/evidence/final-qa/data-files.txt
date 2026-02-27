@@ -1,0 +1,4 @@
+=== Data Files Check ===
+issues.jsonl: EXISTS (       0 bytes)
+interactions.jsonl: EXISTS (       0 bytes)
+HOOKS REMOVED

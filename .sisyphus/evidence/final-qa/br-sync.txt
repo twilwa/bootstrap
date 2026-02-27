@@ -1,0 +1,4 @@
+=== br sync --flush-only ===
+2026-02-27T01:58:47.456717Z  INFO beads_rust::cli::commands::sync: Starting JSONL export
+Nothing to export (no dirty issues)
+EXIT: 0

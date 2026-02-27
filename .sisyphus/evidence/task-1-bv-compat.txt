@@ -1,0 +1,12 @@
+tmpdir=/tmp/br-init-test-HIGJyd
+✓ Created br-init-test-higjyd-3kp: test issue for bv compat
+2026-02-27T01:29:39.131076Z  INFO beads_rust::sync: Auto-flush complete exported=1
+bv available at /Users/anon/Projects/bootstrap/.tools/bin/bv
+Usage: bv [options]
+
+A TUI viewer for beads issue tracker.
+  -agent-brief string
+    	Export agent brief bundle to directory (includes triage.json, insights.json, brief.md, helpers.md)
+bv returncode: 1
+bv output snippet:
+Error running beads viewer: could not open a new TTY: open /dev/tty: device not configured

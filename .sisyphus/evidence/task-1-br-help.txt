@@ -1,0 +1,201 @@
+Agent-first issue tracker (SQLite + JSONL)
+
+Usage: br [OPTIONS] <COMMAND>
+
+Commands:
+  agents       Manage AGENTS.md workflow instructions
+  audit        Record and label agent interactions (append-only JSONL)
+  blocked      List blocked issues
+  changelog    Generate changelog from closed issues
+  close        Close an issue
+  comments     Manage comments
+  completions  Generate shell completions
+  config       Configuration management
+  count        Count issues with optional grouping
+  create       Create a new issue
+  defer        Defer issues (schedule for later)
+  delete       Delete an issue (creates tombstone)
+  dep          Manage dependencies
+  doctor       Run read-only diagnostics
+  epic         Epic management commands
+  graph        Visualize dependency graph
+  history      Manage local history backups
+  info         Show diagnostic metadata about the workspace
+  init         Initialize a beads workspace
+  label        Manage labels
+  lint         Check issues for missing template sections
+  list         List issues
+  orphans      List orphan issues (referenced in commits but open)
+  q            Quick capture (create issue, print ID only)
+  query        Manage saved queries
+  ready        List ready issues (unblocked, not deferred)
+  reopen       Reopen an issue
+  schema       Emit JSON Schemas for br output types (for agent/tooling integration)
+  search       Search issues
+  show         Show issue details
+  stale        List stale issues
+  stats        Show project statistics
+  status       Alias for stats
+  sync         Sync database with JSONL file (export or import)
+  undefer      Undefer issues (make ready again)
+  update       Update an issue
+  upgrade      Upgrade br to the latest version
+  version      Show version information
+  where        Show the active .beads directory
+  help         Print this message or the help of the given subcommand(s)
+
+Options:
+      --db <DB>                      Database path (auto-discover .beads/*.db if not set)
+      --actor <ACTOR>                Actor name for audit trail
+      --json                         Output as JSON
+      --no-daemon                    Force direct mode (no daemon) - effectively no-op in br v1
+      --no-auto-flush                Skip auto JSONL export
+      --no-auto-import               Skip auto import check
+      --allow-stale                  Allow stale DB (bypass freshness check warning)
+      --lock-timeout <LOCK_TIMEOUT>  `SQLite` busy timeout in ms
+      --no-db                        JSONL-only mode (no DB connection)
+  -v, --verbose...                   Increase logging verbosity (-v, -vv)
+  -q, --quiet                        Quiet mode (no output except errors)
+      --no-color                     Disable colored output
+  -h, --help                         Print help
+  -V, --version                      Print version
+Sync database with JSONL file (export or import).
+
+SAFETY GUARANTEES:
+  • br sync NEVER executes git commands or auto-commits
+  • br sync NEVER modifies files outside .beads/ (unless --allow-external-jsonl)
+  • All writes use atomic temp-file-then-rename pattern
+  • Safety guards prevent accidental data loss
+
+MODES (one required unless --status):
+  --flush-only    Export database to JSONL (safe by default)
+  --import-only   Import JSONL into database (validates first)
+  --status        Show sync status (read-only)
+
+SAFETY GUARDS:
+  Export guards (bypassed with --force):
+    • Empty DB Guard: Refuses to export empty DB over non-empty JSONL
+    • Stale DB Guard: Refuses to export if JSONL has issues missing from DB
+
+  Import guards (cannot be bypassed):
+    • Conflict markers: Rejects files with git merge conflict markers
+    • Invalid JSON: Rejects malformed JSONL entries
+
+VERBOSE LOGGING:
+  -v     Show INFO-level safety guard decisions
+  -vv    Show DEBUG-level file operations
+
+EXAMPLES:
+  br sync --flush-only           Export database to .beads/issues.jsonl
+  br sync --flush-only -v        Export with safety logging
+  br sync --import-only          Import from JSONL (validates first)
+  br sync --rebuild              Import + remove DB entries not in JSONL
+  br sync --status               Show current sync status
+
+Usage: br sync [OPTIONS]
+
+Options:
+      --flush-only
+          Export database to JSONL (DB → .beads/issues.jsonl)
+          
+          Writes all issues from `SQLite` database to JSONL format.
+          
+          This is the default if the database is newer than the JSONL file.
+
+      --import-only
+          Import JSONL to database (JSONL → DB)
+          
+          Validates JSONL before import. Rejects files with git merge conflict markers or invalid JSON (cannot be bypassed).
+
+      --merge
+          Perform a 3-way merge (Base + Local DB + Remote JSONL)
+          
+          Reconciles changes when both the database and JSONL have been modified. Uses `.beads/base_snapshot.jsonl` as the common ancestor.
+
+      --status
+          Show sync status (read-only)
+          
+          Displays hash comparison and freshness info without modifications.
+
+  -f, --force
+          Override safety guards (use with caution!)
+          
+          Bypasses Empty DB Guard and Stale DB Guard for export. Does NOT bypass conflict marker detection or JSON validation.
+
+      --allow-external-jsonl
+          Allow using a JSONL path outside the .beads directory.
+          
+          This flag enables paths set via `BEADS_JSONL` environment variable. Paths inside .git/ are always rejected regardless of this flag.
+
+      --manifest
+          Write manifest file with export summary
+
+      --error-policy <ERROR_POLICY>
+          Export error policy: strict (default), best-effort, partial, required-core
+          
+          Controls how export handles serialization errors for individual issues.
+
+      --orphans <ORPHANS>
+          Orphan handling mode: strict (default), resurrect, skip, allow
+          
+          Controls how import handles orphaned dependencies (refs to deleted issues).
+
+      --rename-prefix
+          Rename issues with wrong prefix to expected prefix during import
+
+      --rebuild
+          Rebuild the database from JSONL (removes orphaned DB entries)
+          
+          After importing, deletes any issues in the database that are not present in the JSONL file. This ensures the DB exactly matches the JSONL source of truth.
+
+      --robot
+          Machine-readable output (alias for --json)
+
+      --db <DB>
+          Database path (auto-discover .beads/*.db if not set)
+
+      --actor <ACTOR>
+          Actor name for audit trail
+
+      --json
+          Output as JSON
+
+      --no-daemon
+          Force direct mode (no daemon) - effectively no-op in br v1
+
+      --no-auto-flush
+          Skip auto JSONL export
+
+      --no-auto-import
+          Skip auto import check
+
+      --allow-stale
+          Allow stale DB (bypass freshness check warning)
+
+      --lock-timeout <LOCK_TIMEOUT>
+          `SQLite` busy timeout in ms
+
+      --no-db
+          JSONL-only mode (no DB connection)
+
+  -v, --verbose...
+          Increase logging verbosity (-v, -vv)
+
+  -q, --quiet
+          Quiet mode (no output except errors)
+
+      --no-color
+          Disable colored output
+
+  -h, --help
+          Print help (see a summary with '-h')
+error: unrecognized subcommand 'hook'
+
+Usage: br [OPTIONS] <COMMAND>
+
+For more information, try '--help'.
+error: unrecognized subcommand 'hooks'
+
+Usage: br [OPTIONS] <COMMAND>
+
+For more information, try '--help'.

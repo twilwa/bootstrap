@@ -1,0 +1,13 @@
+=== br init ===
+{
+  "error": {
+    "code": "ALREADY_INITIALIZED",
+    "message": "Already initialized at './.beads/beads.db'",
+    "hint": "Use --force to reinitialize",
+    "retryable": false,
+    "context": {
+      "path": "./.beads/beads.db"
+    }
+  }
+}
+EXIT: 2

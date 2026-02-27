@@ -1,0 +1,34 @@
+repo=/Users/anon/Projects/bootstrap
+pre: issues.jsonl exists=0
+pre: interactions.jsonl exists=1
+issues.jsonl missing before init; no backup
+backup interactions -> /tmp/interactions-backup-54451
+--- br init output ---
+{
+  "error": {
+    "code": "ALREADY_INITIALIZED",
+    "message": "Already initialized at './.beads/beads.db'",
+    "hint": "Use --force to reinitialize",
+    "retryable": false,
+    "context": {
+      "path": "./.beads/beads.db"
+    }
+  }
+}
+br init exit code: 2
+--- preservation checks ---
+issues.jsonl still absent after init
+INTERACTIONS UNCHANGED
+total 1192
+drwxr-x---  12 anon  staff     384 Feb 26 17:29 .
+drwxr-xr-x  22 anon  staff     704 Feb 26 17:17 ..
+-rw-------   1 anon  staff    1203 Feb 16 17:18 .gitignore
+-rw-------   1 anon  staff       7 Feb 16 17:18 .local_version
+-rw-r--r--   1 anon  staff  192512 Feb 26 17:28 beads.db
+-rw-r--r--   1 anon  staff  395552 Feb 26 17:28 beads.db-wal
+-rw-------   1 anon  staff    2079 Feb 16 17:18 config.yaml
+drwxr-x---   3 anon  staff      96 Feb 16 17:18 dolt
+drwxr-xr-x   7 anon  staff     224 Feb 16 17:18 hooks
+-rw-r--r--   1 anon  staff       0 Feb 16 17:18 interactions.jsonl
+-rw-------   1 anon  staff     117 Feb 16 17:18 metadata.json
+-rw-r--r--   1 anon  staff    2250 Feb 16 17:18 README.md

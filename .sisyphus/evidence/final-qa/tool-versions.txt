@@ -1,0 +1,14 @@
+=== Tool Existence ===
+-rwxr-xr-x  1 anon  staff   5803792 Feb 26 17:49 .tools/bin/br
+-rwxr-xr-x  1 anon  staff  49978434 Feb 26 17:56 .tools/bin/bv
+
+=== br --version ===
+br 0.1.20
+
+=== bv --version ===
+bv v0.14.3
+
+=== bv strings check for v0.14 ===
+ Bb/g/i/ho/c/r/a#00ff00#ff6666#ffaa00#88aaff%s %-8snightlyv0.14.3releasectrl+up
+v0.14.4
+/Users/anon/go/pkg/mod/github.com/!dicklesworthstone/beads_viewer@v0.14.4/pkg/model/types.go
