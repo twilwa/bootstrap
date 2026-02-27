@@ -1,6 +1,6 @@
 {
-  "database": "dolt",
+  "database": "sqlite",
   "jsonl_export": "issues.jsonl",
-  "backend": "dolt",
-  "dolt_database": "beads_bootstrap"
+  "backend": "sqlite",
+  "tool": "br"
 }
