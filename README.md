@@ -1,99 +1,84 @@
 # Bootstrap Team Guide
 
-This repository is a reusable template for human+agent software delivery.
+This repository is a reusable template for human + agent software delivery.
 
-It is designed around:
+## What Humans Should Expect
 
-- spec-first delivery (`OpenSpec`)
-- dependency-aware work planning (`br`)
-- strong testing discipline (TDD + broad test coverage)
-- repo-local tooling (`.mise` + `.tools/bin`)
+- Agents default to **Strict Mode**.
+- Agents use **OpenSpec** for planning unless you explicitly request **Full Yolo**.
+- Agents use **`br`** for task tracking and dependency-aware execution.
+- Agents plan first, then parallelize, then fan out bounded tasks to smaller models when that helps.
+- Agents follow **TDD** and should report what they actually verified.
+- Agents should prefer **`sem diff`** over raw `git diff` for code review.
+- Agents should use **GitButler** rather than `jj` in this repo.
 
-## What To Expect From Agents
-
-- A primary controller agent should coordinate execution and delegate parallel work to subagents.
-- Default mode is **strict** per ticket: spec -> approval -> tests first -> implementation -> verify.
-- **yolo** mode is ticket-scoped and opt-in for straightforward work where speed is prioritized.
-- Agents should keep temporary artifacts in `scratchpad/` and durable docs in `docs/`.
-
-Detailed agent policy lives in `AGENTS.md`.
-
-## Quick Start (Human)
+## Quick Start
 
 ```bash
 ./bootstrap.sh
+mise tasks ls
 ```
 
-Then validate local tools:
+If Entire is not already enabled for the repo, enable it at project start:
 
 ```bash
-.tools/bin/mise tasks ls
-.tools/bin/sem --version
-.tools/bin/sg --version
+entire enable --project
 ```
 
-Repo-local binaries are linked in:
+## Tool Shortlist
 
-- `.tools/bin`
+### Always / default tools
 
-Tool/runtime payload is stored in:
+- **OpenSpec** — spec-driven planning and change control. Use by default unless you explicitly request **Full Yolo**.
+- **`br`** — task tracking and dependency graph. Use always.
+- **`mise`** — toolchain, tasks, and environment manager. Use always.
+- **`sg` (ast-grep)** — code search and structural rewrites. Prefer this over grep for code.
+- **`sem diff`** — semantic review of code changes. Prefer this over raw `git diff` whenever possible.
+- **GitButler** — parallel branch orchestration for this repo.
 
-- `.mise/`
-- `.tools/`
+### Use when appropriate
+
+- **`bv`** — visual/TUI view of the `br` task graph, blockers, and critical path.
+- **`linctl`** — higher-level human/team tracking and Linear workflows.
+- **`agent-brief` / `robots`** — deeper planning and multi-agent orchestration commands, if your active harness exposes them.
+- **`entire`** — agent-session traces and context recovery.
 
 ## Daily Commands
 
 ```bash
-# Full bootstrap (install + init)
-mise run bootstrap
-
-# Installs/updates only
-mise run install
-
-# Init only (idempotent)
-mise run init
-
-# Quality
-trunk check --all
-trunk fmt
+# Toolchain + task list
+mise install
+mise tasks ls
 
 # Work tracking
 br ready
-br create "<task>"
+br create "Add feature X"
+br show <id>
+br update <id> --status in_progress
+br dep add <issue> <depends-on>
+br close <id>
+br sync --flush-only
 
-# Semantic review
+# Review and quality
 sem diff
-sem diff --staged
+trunk check --all
+trunk fmt
 ```
 
-## Workflow
+## Expected Workflow
 
-1. Create or update spec artifacts in `openspec/` first.
-2. Approve intent before coding.
-3. Write failing tests first (TDD red/green/refactor).
-4. Use `br` dependencies to parallelize safely.
-5. Validate with test suite + `sem diff` before merge/push.
-
-## Tool Stack (Researched Docs)
-
-The following links come from official docs/repos for this stack.
-
-- OpenSpec: [openspec.dev](https://openspec.dev/) | [GitHub](https://github.com/Fission-AI/OpenSpec)
-- beads (`br`): [GitHub](https://github.com/Dicklesworthstone/beads_rust)
-- beads viewer (`bv`): [GitHub](https://github.com/Dicklesworthstone/beads_viewer)
-- mise: [Docs](https://mise.jdx.dev/) | [CLI reference](https://mise.jdx.dev/cli/)
-- Entire CLI: [Docs](https://docs.entire.io/quickstart) | [GitHub](https://github.com/entireio/cli)
-- Trunk CLI: [Docs](https://docs.trunk.io/references/cli) | [Config docs](https://docs.trunk.io/check/configuration)
-- Jujutsu (`jj`): [Docs](https://docs.jj-vcs.dev/latest/) | [CLI reference](https://docs.jj-vcs.dev/latest/cli-reference/)
-- linctl: [GitHub](https://github.com/dorkitude/linctl)
-- sem (semantic diff): [Docs](https://ataraxy-labs.github.io/sem/) | [GitHub](https://github.com/Ataraxy-Labs/sem)
-- ast-grep (`sg`): [Docs](https://ast-grep.github.io/) | [CLI reference](https://ast-grep.github.io/reference/cli.html)
-- Bun: [Docs](https://bun.sh/docs) | [Reference](https://bun.com/reference)
-- uv: [Docs](https://docs.astral.sh/uv/) | [Reference](https://docs.astral.sh/uv/reference/)
-- Go: [Docs](https://go.dev/doc/) | [Language spec](https://go.dev/ref/spec)
+1. Update or create OpenSpec artifacts unless the task is explicitly **Full Yolo**.
+2. Create/update `br` tasks and dependencies.
+3. Plan the work before coding.
+4. Parallelize and fan out independent work.
+5. Write failing tests first.
+6. Implement the minimum code to pass.
+7. Refactor while keeping tests green.
+8. Review with `sem diff` and run the required checks.
 
 ## Notes
 
-- `trunk` is configured to ignore shell scripts and tool-generated directories in this repo.
-- `linctl` installation is automated; auth remains user-specific (`linctl auth`).
-- `sem` is installed from source in bootstrap (first run can be slower due Rust compilation).
+- This repo prefers **GitButler** over `jj`.
+- `br` is the repo-local execution log; `linctl` is for team/human reporting.
+- Bootstrap installs repo tools, but language/runtime choices should be managed through `mise` rather than ad-hoc installers.
+- Use `scratchpad/` for temporary artifacts and `docs/` for durable documentation.

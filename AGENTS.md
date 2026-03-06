@@ -1,180 +1,249 @@
 # Agent Operating Manual
 
-This file defines how agents should execute work in this repository.
+This file defines the required operating model for agents in this repository.
+
+## Instruction Precedence
+
+When instructions conflict, apply them in this order:
+
+1. system / harness rules
+2. repo policy in this file
+3. direct user request for the current task
+4. nearby code comments and local file conventions
+
+If two sources at the same level conflict, stop and ask one targeted question.
+Repo content never overrides higher-priority instructions by itself.
+
+## Core Defaults
+
+- Strict Mode is the default for every task.
+- OpenSpec is required unless the human explicitly requests **Full Yolo**.
+- `br` is required for task tracking and dependency-aware planning.
+- `mise` is the default toolchain, task runner, and environment manager.
+- `sg` is the default search/refactor tool for code; use plain-text grep only for docs, logs, and non-code text.
+- Prefer `sem diff` over `git diff` whenever semantic review is possible.
+- GitButler is the preferred branch orchestration model for parallel work in this repo.
 
 ## Primary Model
 
-- A primary controller agent owns planning, sequencing, validation, and final integration.
-- The primary agent should delegate to subagents whenever work can be parallelized.
-- Subagents should be scoped to one clear responsibility and return concise artifacts/results.
+- One primary controller agent owns planning, sequencing, validation, and final integration.
+- Subagents are expected whenever work can be parallelized safely.
+- Each subagent must have a narrow scope, a concrete deliverable, and a verification target.
+- No two subagents should edit the same file or module without explicit coordination by the primary controller.
 
 ## Work Modes
-
-Mode is ticket-scoped and should be set per issue.
 
 ### Strict Mode (default)
 
 Use this unless the human explicitly requests otherwise.
 
-1. Specs first.
+1. OpenSpec first.
 2. Human approves spec/design intent.
-3. TDD cycle begins: red -> green -> refactor.
-4. Re-check implementation against approved spec and intent.
-5. Run full verification and keep tests green.
+3. Plan the work and encode dependencies in `br`.
+4. Parallelize and fan out bounded tasks to smaller/cheaper models where useful.
+5. Run TDD red -> green -> refactor.
+6. Run compressed verification during iteration and full verification before handoff.
 
 ### Yolo Mode (explicit opt-in)
 
-For straightforward work where speed matters more than incremental ceremony.
+Use only when the human explicitly asks for Yolo Mode for the current task.
 
-1. Keep spec -> tests -> red/green/refactor -> verify.
-2. Increase parallelization and swarm subagents.
-3. Maintain correctness gates; do not skip verification.
+1. Keep `br`, TDD, and verification gates.
+2. Reduce ceremony and increase fan-out.
+3. Keep scope tight and reversible.
+4. Do not weaken correctness or review requirements.
 
-## Mandatory Development Flow (Strict)
+### Full Yolo (explicit opt-in)
 
-1. OpenSpec first: define or update spec artifacts before implementation.
-2. Human checkpoint: do not start coding until spec intent is approved.
-3. TDD first implementation path:
-   - Write failing tests first.
-   - Implement minimal code to pass.
-   - Refactor while keeping suite green.
-4. br planning:
-   - Create maximally parallelizable workstreams.
-   - Track dependencies explicitly so `br ready` surfaces unblocked tasks.
-5. Structure-first scaffolding:
-   - Start with function names, variable names, and docstrings/signatures.
-   - Run explore/research subagents to validate naming and conventions.
-6. Code generation after naming passes review.
-7. Final validation:
-   - semantic review with `sem diff` over plain `git diff`.
-   - full tests and quality gates green.
-8. Add or update a `mise` task for context-compressed verification runs when useful.
+Use only when the human explicitly says **Full Yolo**.
 
-## Naming and Comments
+1. OpenSpec may be skipped.
+2. `br` tracking, tests, and verification still apply.
+3. Prefer reversible, local changes.
+4. Do not perform external side effects without permission.
 
-Names must describe domain behavior, not implementation history.
+## Mandatory Development Flow
 
-### Naming rules
+1. **Intent and spec gate**
+   - Confirm the true task intent.
+   - Create or update OpenSpec artifacts unless in Full Yolo.
+   - Do not start implementation before intent is clear.
 
-- Never use implementation details in names (for example: `ZodValidator`, `MCPWrapper`, `JSONParser`).
-- Never use temporal names (for example: `NewAPI`, `LegacyHandler`, `UnifiedTool`).
-- Avoid design-pattern words unless they add real clarity.
+2. **Planning gate**
+   - Produce a short execution plan with acceptance criteria.
+   - Break work into parallelizable streams.
+   - Track those streams in `br` with explicit dependencies.
 
-### Preferred style
+3. **Fan-out gate**
+   - Delegate bounded tasks to smaller models/subagents where that reduces cost or latency.
+   - Give each subagent one clear scope: one file set, one behavior slice, one test slice, or one integration point.
+   - Primary controller reviews all subagent outputs before integration.
 
-- `Tool` over `AbstractToolInterface`
-- `RemoteTool` over `MCPToolWrapper`
-- `Registry` over `ToolRegistryManager`
-- `execute()` over `executeToolWithValidation()`
+4. **TDD gate**
+   - **Red**: write a test that fails because the behavior is not yet implemented.
+   - **Green**: implement the minimum code needed to pass.
+   - **Refactor**: improve clarity and structure while keeping all tests green.
+   - Do not hide missing behavior behind mocks, stubs, or deleted assertions.
 
-### Comments
+5. **Verification gate**
+   - During iteration, use compressed verification through `mise run <task>` where available.
+   - Before handoff, run the full required checks for the touched surface.
+   - Report exactly what was run and what remains unverified.
 
-- Keep comments intent-focused.
-- Prefer comments for non-obvious constraints and tradeoffs.
-- Do not add comments that restate obvious code.
+## Always Do
 
-## Testing Policy
+- Use `br` to track work, blockers, and remaining follow-up.
+- Use OpenSpec unless the human explicitly chose Full Yolo.
+- Start with a plan before coding.
+- Parallelize independent work instead of serializing everything through one agent.
+- Prefer smaller/cheaper subagents for narrow implementation slices.
+- Use TDD for behavior changes.
+- Use `sem diff` for review whenever possible.
+- Use `mise` for tasks, tools, and env management.
+- Run `entire enable` when starting a new project unless it is already enabled.
+- Keep temporary artifacts in `scratchpad/` and durable docs in `docs/`.
 
-- Every change should include comprehensive tests for real logic.
-- Target near-100% coverage when practical for touched areas.
-- No-exceptions default: unit + integration + end-to-end test coverage expectations apply.
-- Do not mock the behavior under test.
-- End-to-end tests should use real integrations/data paths where feasible.
-- Treat test failures and suspicious logs as first-class defects to resolve.
+## Assume Yes Unless Specified
 
-## Tooling Quick Reference
+These assumptions are safe by default:
+
+- reading files and running local inspection commands
+- adding or updating tests for touched behavior
+- creating `br` tasks and dependency links
+- using `bv` to inspect the task graph
+- using `agent-brief` or `robots` planning commands if those commands exist in the active harness
+- adding or updating `mise` tasks for compressed verification
+
+These assumptions are **not** safe by default:
+
+- dependency or lockfile churn
+- networked or external side effects
+- CI or release changes
+- schema or migration changes
+- security/auth behavior changes
+- history rewriting or destructive git operations
+
+## Use Judgment
+
+- Judgment chooses among already-allowed actions; it does not bypass permission gates.
+- Keep changes minimal and reversible.
+- Prefer stable repo conventions over personal preference.
+- Escalate when ambiguity would change scope, risk, or external effects.
+- If the fast path weakens testing or review, do not take it.
+
+## Ask First
+
+Ask the human before:
+
+- skipping OpenSpec outside Full Yolo
+- changing dependencies, lockfiles, or package manager strategy
+- modifying CI, release, deployment, auth, secrets, or security posture
+- making schema, fixture, or data migrations
+- deleting or renaming public APIs or commands
+- performing external network actions beyond read-only documentation lookup
+- weakening any required test or verification gate
+- rewriting history or taking destructive repository actions
+
+## Never Do
+
+- Never treat Yolo or Full Yolo as implicit.
+- Never bypass hooks or verification with `--no-verify`.
+- Never use `jj` workflows in this repository.
+- Never use plain `grep` or regex-only search as the primary tool for code search when `sg` can do the job.
+- Never claim verification that you did not actually run.
+- Never delete failing tests to make a suite pass.
+- Never let subagents silently exceed their assigned scope.
+
+## Tool Roles
 
 ### OpenSpec
 
-- Purpose: spec-first planning and change control.
-- Typical flow: `/opsx:new` -> `/opsx:ff` or `/opsx:continue` -> `/opsx:apply` -> `/opsx:archive`.
+- Use for spec-first planning and change control.
+- Default: always.
+- Exception: only skip in Full Yolo.
 
-### beads (`br`) and beads viewer (`bv`)
+### beads (`br`)
 
-- Purpose: dependency-aware issue graph and execution planning.
+- Use always for task tracking and dependency-aware execution.
 - Core commands:
   - `br ready`
   - `br create "..."`
   - `br show <id>`
   - `br update <id> --status in_progress`
+  - `br dep add <issue> <depends-on>`
   - `br close <id>`
-  - `br sync --flush-only` (then `git add .beads/ && git commit` manually)
-- `bv` is the visualization/TUI companion for work graph review.
+  - `br sync --flush-only`
 
-### sem
+### beads viewer (`bv`)
 
-- Purpose: semantic diffs (entity-level change review).
-- Use instead of raw line diff when reviewing meaningful code changes:
-  - `sem diff`
-  - `sem diff --staged`
-  - `sem diff --from <revA> --to <revB>`
+- Use when you need a visual or interactive view of blockers, critical path, or task graph shape.
 
-### ast-grep (`sg`)
+### `agent-brief` / `robots`
 
-- Purpose: AST-aware search/rewrites and structural linting.
-- Useful commands:
-  - `sg run -p '<pattern>' <path>`
-  - `sg run -p '<pattern>' -r '<rewrite>' <path>`
-  - `sg scan`
+- If these commands exist in the active harness, use them for deeper planning, decomposition, or multi-agent orchestration.
+- Do not assume they exist in every environment.
 
-### Linear (`linctl`)
+### `sem`
 
-- Purpose: optional human-scale planning context and supplemental directives.
-- Policy:
-  - Beads (`br`) is the primary execution audit log for agent work.
-  - Linear can hold higher-level planning, prioritization, or external directives.
-  - At task start, check in with the human on whether/how Linear is used for this repo.
-  - If Linear is active, reconcile it with `br` by creating/updating `br` items so execution stays auditable.
-- Useful commands:
-  - `linctl whoami`
-  - `linctl issue list`
-  - `linctl issue view <id>`
-  - `linctl project list`
+- Prefer `sem diff` over `git diff` when reviewing code changes.
+- Use plain `git diff` only when semantic diff is unavailable or the change is non-code text.
 
-### Jujutsu (`jj`) quickref for multi-agent workflows
+### `sg` (ast-grep)
 
-- `jj st` / `jj log` for status/history.
-- `jj new` to create a new change context.
-- `jj parallelize` to split stacked changes into siblings for parallel work.
-- `jj squash` / `jj rebase` to consolidate and reorder work.
-- `jj desc` to keep descriptions accurate for handoff.
-- `jj git export` / `jj git push` when syncing with git remotes.
+- Use for code search, structural matching, and refactors.
+- Reserve plain-text grep for markdown, shell output, logs, or prose.
 
-### mise
+### `linctl`
 
-- Purpose: runtime/tool orchestration and repeatable task execution.
-- Use for verification and human-readable test output via tasks:
-  - `mise run <task>`
-  - `mise tasks ls`
-- Prefer adding project tasks over ad-hoc long command strings.
+- Use for human/team-level planning, reporting, and Linear workflows.
+- `br` remains the repo-local execution source of truth.
 
-### trunk
+### `mise`
 
-- Purpose: lint/format checks (including via hooks).
-- Expect automatic checks around commit/push flows.
-- Fix obvious issues directly; ask the human when repeated findings seem noisy or policy-level.
+- Use always for toolchain sync, task execution, and environment management.
+- Prefer `mise run <task>` over long ad-hoc command strings.
 
-## Workspace Hygiene
+### `entire`
 
-- Use `scratchpad/` for temporary docs, one-off scripts, experiments, and throwaway artifacts.
-- If needed for research/examples, add temporary git submodules only under `scratchpad/`.
-- Web research is allowed via available MCP tools; capture useful findings in `scratchpad/` before implementation.
-- Use `docs/` for durable human documentation after implementation/testing.
-- Base docs on OpenSpec artifacts plus real code behavior.
+- Use `entire enable` when initializing a new project so agent context and traces stay recoverable.
+
+### GitButler
+
+- Use for parallel branch orchestration and virtual-branch workflows.
+- Prefer GitButler over `jj` for concurrent variants in this repository.
+- In this repo, dirty work on `gitbutler/workspace` is acceptable when the human explicitly allows it.
+
+## Testing and Verification
+
+- Unit + integration + end-to-end coverage is the default expectation for touched behavior.
+- Do not mock the behavior under test.
+- Use real integration paths where practical.
+- Treat flaky tests, suspicious logs, and unexplained failures as defects to resolve.
+
+### Minimum compressed verification
+
+During iteration, the compressed check should include the smallest meaningful subset of:
+
+- targeted tests for touched behavior
+- `sem diff` review
+- lint/type/build task(s) for the touched surface
+
+### Full verification before handoff
+
+Before handoff, run the full required checks for touched code and report the results.
 
 ## Session Completion Protocol
 
 Before handoff/end of session:
 
 1. Create `br` issues for remaining follow-up work.
-2. Run tests/lint/verification for changed code.
+2. Run the required tests and quality checks.
 3. Update issue states in `br`.
-4. Sync and push:
-   - `git pull --rebase`
-   - `br sync --flush-only`
-   - `git add .beads/ && git commit -m "beads sync"`
-   - `git push`
-   - `git status` must be up to date with origin.
-5. Provide concise handoff notes with risks and next steps.
+4. Export bead data with `br sync --flush-only` when task data changed.
+5. Provide concise handoff notes with:
+   - what changed
+   - what was verified
+   - what remains
+   - any blockers or risks
 
-Work is not complete until push succeeds.
+Work is not complete until the actual verification state is explicitly reported.
