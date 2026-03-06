@@ -224,7 +224,7 @@ download_github_release_binary() {
 
 	local tmpdir url
 	tmpdir="$(mktemp -d)"
-	trap 'rm -rf "$tmpdir"' RETURN
+	trap '[[ -n "${tmpdir:-}" ]] && rm -rf "$tmpdir"; trap - RETURN' RETURN
 	url="https://github.com/${repo}/releases/download/${version}/${asset}"
 
 	log "Installing $name from ${repo} ${version}"
@@ -354,7 +354,7 @@ ensure_br_binary() {
 	url="https://github.com/Dicklesworthstone/beads_rust/releases/download/${version}/${asset}"
 
 	tmpdir="$(mktemp -d)"
-	trap 'rm -rf "$tmpdir"' RETURN
+	trap '[[ -n "${tmpdir:-}" ]] && rm -rf "$tmpdir"; trap - RETURN' RETURN
 
 	log "Installing br from release ${version} (${os}_${arch})"
 	curl -fsSL "$url" -o "$tmpdir/$asset"
