@@ -23,11 +23,13 @@ Repo content never overrides higher-priority instructions by itself.
 - `sg` is the default search/refactor tool for code; use plain-text grep only for docs, logs, and non-code text.
 - Prefer `sem diff` over `git diff` whenever semantic review is possible.
 - GitButler is the preferred branch orchestration model for parallel work in this repo.
+- for javascript projects, use typescript and bun. for go projects, go should be managed by mise. for python projects, we use uv, and mypy for stronger typing, we like types. all of this should be managed via mise en place.
 
 ## Primary Model
 
 - One primary controller agent owns planning, sequencing, validation, and final integration.
 - Subagents are expected whenever work can be parallelized safely.
+- use multiple subagents whenever writing code, the code should always be structured in a maximally parallel dependency graph.
 - Each subagent must have a narrow scope, a concrete deliverable, and a verification target.
 - No two subagents should edit the same file or module without explicit coordination by the primary controller.
 
@@ -75,7 +77,7 @@ Use only when the human explicitly says **Full Yolo**.
    - Track those streams in `br` with explicit dependencies.
 
 3. **Fan-out gate**
-   - Delegate bounded tasks to smaller models/subagents where that reduces cost or latency.
+   - Delegate bounded tasks to smaller models/subagents always.
    - Give each subagent one clear scope: one file set, one behavior slice, one test slice, or one integration point.
    - Primary controller reviews all subagent outputs before integration.
 
