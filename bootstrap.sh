@@ -6,7 +6,6 @@ TOOLS_DIR="$ROOT_DIR/.tools"
 BIN_DIR="$TOOLS_DIR/bin"
 MISE_DIR="$ROOT_DIR/.mise"
 MISE_BIN="$BIN_DIR/mise"
-TS_DIR="$TOOLS_DIR/typescript"
 CARGO_DIR="$TOOLS_DIR/cargo"
 
 INSTALL_PHASE=1
@@ -77,7 +76,7 @@ parse_args() {
 
 setup_dirs() {
 	mkdir -p "$BIN_DIR" "$MISE_DIR" "$MISE_DIR/cache" "$MISE_DIR/state"
-	mkdir -p "$TS_DIR" "$TOOLS_DIR/uv/python" "$CARGO_DIR/bin"
+	mkdir -p "$CARGO_DIR/bin"
 }
 
 setup_env() {
@@ -89,7 +88,6 @@ setup_env() {
 	export MISE_STATE_DIR="$MISE_DIR/state"
 	export MISE_TRUSTED_CONFIG_PATHS="$ROOT_DIR${MISE_TRUSTED_CONFIG_PATHS:+:$MISE_TRUSTED_CONFIG_PATHS}"
 
-	export UV_PYTHON_INSTALL_DIR="$TOOLS_DIR/uv/python"
 	export CARGO_INSTALL_ROOT="$CARGO_DIR"
 }
 
@@ -145,15 +143,72 @@ ensure_mise_tools() {
 	log "Installing tools from mise.toml"
 	mise_cmd install -y
 
-	for tool in mise go bun uv jj trunk openspec ast-grep sg; do
+	for tool in mise bun trunk openspec ast-grep sg; do
 		link_mise_binary "$tool"
 	done
 }
 
-ensure_go_binary() {
+ensure_gitbutler_binary() {
+	if [[ -x "$BIN_DIR/gitbutler" ]]; then
+		return
+	fi
+
+	local existing
+	existing="$(find_system_binary gitbutler)"
+	if [[ -n "$existing" && -x "$existing" ]]; then
+		log "Linking existing gitbutler from $existing"
+		ln -sf "$existing" "$BIN_DIR/gitbutler"
+		return
+	fi
+
+	case "$(uname -s)" in
+	Darwin)
+		for candidate in \
+			"/Applications/GitButler.app/Contents/MacOS/gitbutler" \
+			"$HOME/Applications/GitButler.app/Contents/MacOS/gitbutler"; do
+			if [[ -x "$candidate" ]]; then
+				log "Linking existing gitbutler app from $candidate"
+				ln -sf "$candidate" "$BIN_DIR/gitbutler"
+				return
+			fi
+		done
+
+		if command -v mdfind >/dev/null 2>&1; then
+			local app_path
+			app_path="$(mdfind 'kMDItemCFBundleIdentifier == "com.gitbutler.app"' | head -n 1)"
+			if [[ -n "$app_path" && -x "$app_path/Contents/MacOS/gitbutler" ]]; then
+				log "Linking existing gitbutler app from $app_path"
+				ln -sf "$app_path/Contents/MacOS/gitbutler" "$BIN_DIR/gitbutler"
+				return
+			fi
+		fi
+
+		if command -v brew >/dev/null 2>&1; then
+			log "Installing GitButler with Homebrew"
+			brew list --cask gitbutler >/dev/null 2>&1 || brew install --cask gitbutler
+			for candidate in \
+				"/Applications/GitButler.app/Contents/MacOS/gitbutler" \
+				"$HOME/Applications/GitButler.app/Contents/MacOS/gitbutler"; do
+				if [[ -x "$candidate" ]]; then
+					ln -sf "$candidate" "$BIN_DIR/gitbutler"
+					return
+				fi
+			done
+		fi
+		warn "GitButler was not found after Homebrew install; install it manually if needed"
+		;;
+	*)
+		warn "Automatic GitButler install is not configured for $(uname -s); install it manually if needed"
+		;;
+	esac
+}
+
+download_github_release_binary() {
 	local name="$1"
-	local module="$2"
-	local cgo_mode="${3:-1}"
+	local repo="$2"
+	local version="$3"
+	local asset="$4"
+	local extracted_binary="${5:-$1}"
 
 	if [[ -x "$BIN_DIR/$name" ]]; then
 		return
@@ -167,14 +222,78 @@ ensure_go_binary() {
 		return
 	fi
 
-	log "Installing $name from $module"
-	if [[ "$cgo_mode" == "0" ]]; then
-		mise_cmd exec -- env -u GOROOT GOBIN="$BIN_DIR" CGO_ENABLED=0 go install "$module@latest"
-	else
-		mise_cmd exec -- env -u GOROOT GOBIN="$BIN_DIR" go install "$module@latest"
+	local tmpdir url
+	tmpdir="$(mktemp -d)"
+	trap 'rm -rf "$tmpdir"' RETURN
+	url="https://github.com/${repo}/releases/download/${version}/${asset}"
+
+	log "Installing $name from ${repo} ${version}"
+	curl -fsSL "$url" -o "$tmpdir/$asset"
+	tar -xzf "$tmpdir/$asset" -C "$tmpdir"
+
+	[[ -x "$tmpdir/$extracted_binary" ]] || die "Expected $extracted_binary in $asset"
+	install -m 0755 "$tmpdir/$extracted_binary" "$BIN_DIR/$name"
+}
+
+ensure_bv_binary() {
+	local version="v0.14.4"
+	local os arch asset
+
+	case "$(uname -s)" in
+	Darwin) os="darwin" ;;
+	Linux) os="linux" ;;
+	*) die "Unsupported OS for bv: $(uname -s)" ;;
+	esac
+
+	case "$(uname -m)" in
+	x86_64 | amd64) arch="amd64" ;;
+	arm64 | aarch64) arch="arm64" ;;
+	*) die "Unsupported architecture for bv: $(uname -m)" ;;
+	esac
+
+	asset="bv_${version#v}_${os}_${arch}.tar.gz"
+	download_github_release_binary bv Dicklesworthstone/beads_viewer "$version" "$asset" bv
+}
+
+ensure_entire_binary() {
+	local version="v0.4.9"
+	local os arch asset
+
+	case "$(uname -s)" in
+	Darwin) os="darwin" ;;
+	Linux) os="linux" ;;
+	*) die "Unsupported OS for entire: $(uname -s)" ;;
+	esac
+
+	case "$(uname -m)" in
+	x86_64 | amd64) arch="amd64" ;;
+	arm64 | aarch64) arch="arm64" ;;
+	*) die "Unsupported architecture for entire: $(uname -m)" ;;
+	esac
+
+	asset="entire_${os}_${arch}.tar.gz"
+	download_github_release_binary entire entireio/cli "$version" "$asset" entire
+}
+
+ensure_linctl_binary() {
+	if [[ -x "$BIN_DIR/linctl" ]]; then
+		return
 	fi
 
-	[[ -x "$BIN_DIR/$name" ]] || die "Expected $name in $BIN_DIR after install"
+	local existing
+	existing="$(find_system_binary linctl)"
+	if [[ -n "$existing" && -x "$existing" ]]; then
+		log "Linking existing linctl from $existing"
+		ln -sf "$existing" "$BIN_DIR/linctl"
+		return
+	fi
+
+	log "Installing linctl with a mise-managed Go toolchain"
+	mise_cmd exec -- env -u GOROOT GOBIN="$BIN_DIR" go install github.com/dorkitude/linctl@latest
+
+	if [[ ! -x "$BIN_DIR/linctl" ]]; then
+		warn "linctl install did not produce a local binary; install it separately if your workflow needs Linear integration"
+	fi
 }
 
 ensure_sem_binary() {
@@ -220,15 +339,15 @@ ensure_br_binary() {
 	local os arch asset url tmpdir
 
 	case "$(uname -s)" in
-		Darwin) os="darwin" ;;
-		Linux) os="linux" ;;
-		*) die "Unsupported OS for br: $(uname -s)" ;;
+	Darwin) os="darwin" ;;
+	Linux) os="linux" ;;
+	*) die "Unsupported OS for br: $(uname -s)" ;;
 	esac
 
 	case "$(uname -m)" in
-		x86_64|amd64) arch="amd64" ;;
-		arm64|aarch64) arch="arm64" ;;
-		*) die "Unsupported architecture for br: $(uname -m)" ;;
+	x86_64 | amd64) arch="amd64" ;;
+	arm64 | aarch64) arch="arm64" ;;
+	*) die "Unsupported architecture for br: $(uname -m)" ;;
 	esac
 
 	asset="br-${version}-${os}_${arch}.tar.gz"
@@ -246,10 +365,11 @@ ensure_br_binary() {
 }
 
 ensure_extra_tools() {
+	ensure_gitbutler_binary
 	ensure_br_binary
-	ensure_go_binary bv github.com/Dicklesworthstone/beads_viewer/cmd/bv
-	ensure_go_binary entire github.com/entireio/cli/cmd/entire
-	ensure_go_binary linctl github.com/dorkitude/linctl
+	ensure_bv_binary
+	ensure_entire_binary
+	ensure_linctl_binary
 	ensure_sem_binary
 
 	if [[ -z "$(command -v sg || true)" ]]; then
@@ -257,46 +377,6 @@ ensure_extra_tools() {
 	fi
 	link_mise_binary sg
 	link_mise_binary ast-grep
-
-	if [[ ! -f "$TS_DIR/package.json" ]]; then
-		cat >"$TS_DIR/package.json" <<'JSON'
-{
-  "name": "bootstrap-typescript",
-  "private": true
-}
-JSON
-	fi
-
-	if [[ ! -x "$TS_DIR/node_modules/.bin/tsc" ]]; then
-		log "Installing TypeScript toolchain with bun"
-		mise_cmd exec -- bun add --cwd "$TS_DIR" typescript@latest tsx@latest @types/node@latest
-	fi
-	if [[ -x "$TS_DIR/node_modules/.bin/tsc" ]]; then
-		ln -sf "$TS_DIR/node_modules/.bin/tsc" "$BIN_DIR/tsc"
-	fi
-	if [[ -x "$TS_DIR/node_modules/.bin/tsx" ]]; then
-		ln -sf "$TS_DIR/node_modules/.bin/tsx" "$BIN_DIR/tsx"
-	fi
-
-	if [[ -x "$BIN_DIR/python" ]]; then
-		log "Python already installed, skipping"
-	else
-		local latest_py
-		latest_py="$(mise_cmd exec -- env UV_PYTHON_INSTALL_DIR="$UV_PYTHON_INSTALL_DIR" uv python list | awk '/^cpython-[0-9]+\.[0-9]+\.[0-9]+-/ {sub(/^cpython-/, "", $1); split($1, parts, "-"); print parts[1]; exit}')"
-		if [[ -z "$latest_py" ]]; then
-			latest_py="3"
-		fi
-
-		log "Installing CPython $latest_py with uv"
-		mise_cmd exec -- env UV_PYTHON_INSTALL_DIR="$UV_PYTHON_INSTALL_DIR" uv python install "$latest_py"
-
-		local py
-		py="$(mise_cmd exec -- env UV_PYTHON_INSTALL_DIR="$UV_PYTHON_INSTALL_DIR" uv python find "$latest_py" 2>/dev/null || true)"
-		if [[ -n "$py" && -x "$py" ]]; then
-			ln -sf "$py" "$BIN_DIR/python"
-			ln -sf "$py" "$BIN_DIR/python3"
-		fi
-	fi
 }
 
 resolve_openspec_tools() {
@@ -350,16 +430,6 @@ init_entire() {
 	fi
 }
 
-init_jj() {
-	if [[ -d "$ROOT_DIR/.jj" ]]; then
-		log "Jujutsu already initialized"
-		return
-	fi
-
-	log "Initializing Jujutsu colocated repo"
-	mise_cmd exec -- jj git init --colocate "$ROOT_DIR"
-}
-
 init_trunk() {
 	if [[ -f "$ROOT_DIR/.trunk/trunk.yaml" ]]; then
 		log "Trunk already initialized"
@@ -380,7 +450,7 @@ post_init_notes() {
 
 verify_installs() {
 	local missing=0
-	local tools=(mise go bun uv openspec br bv entire jj trunk linctl sem sg ast-grep)
+	local tools=(mise bun openspec br bv entire trunk linctl sem sg ast-grep)
 
 	for tool in "${tools[@]}"; do
 		if [[ ! -x "$BIN_DIR/$tool" ]]; then
@@ -413,7 +483,6 @@ main() {
 		init_openspec
 		init_beads
 		init_entire
-		init_jj
 		init_trunk
 		post_init_notes
 	fi
