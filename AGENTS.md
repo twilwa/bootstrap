@@ -322,7 +322,7 @@ Before handoff/end of session:
 
 Work is not complete until the actual verification state is explicitly reported.
 
-## Typical Workflow Ochestration order
+## Typical Workflow Orchestration order
 
 - human may provide additional steering or prompting, this should be reflected as an openspec changeset
 - once proprosal is approved and tasks.md are generated for ALL changesets in the wave, codify tasks into br workstreams, maximally paralell, with correct dependencies for blocking tasks.
