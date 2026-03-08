@@ -210,7 +210,7 @@ Ask the human before:
 ### GitButler
 
 - Use for parallel branch orchestration and virtual-branch workflows.
-- Prefer GitButler over `jj` for concurrent variants in this repository. The `but` cli is your version control entrypoint, the human also has a UI available.
+- Prefer GitButler over `jj` for concurrent variants in this repository. The `but` CLI is your version control entrypoint; the human also has a UI available.
 - In this repo, the trunk branch is always `gitbutler/workspace`, virtual branches will commonly be named t-branch-N. Agents should work on gitbutler/workspace, the virtual branches will be largely managed by the human unless instructed to cherrypick or perform another git op.
 
 ### mcphub.nvim (Neovim MCP Client)
