@@ -219,7 +219,8 @@ ensure_gitbutler_binary() {
 
 		if command -v brew >/dev/null 2>&1; then
 			log "Installing GitButler with Homebrew"
-			brew list --cask gitbutler >/dev/null 2>&1 || brew install --cask gitbutler
+			# Use reinstall to handle existing app gracefully (install fails if app already exists)
+			brew reinstall --cask gitbutler
 			for candidate in \
 				"/Applications/GitButler.app/Contents/MacOS/but" \
 				"/Applications/GitButler.app/Contents/MacOS/gitbutler" \
