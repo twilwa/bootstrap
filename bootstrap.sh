@@ -148,27 +148,57 @@ ensure_mise_tools() {
 	done
 }
 
+verify_but_cli() {
+	local bin="$1"
+	if "$bin" --version >/dev/null 2>&1; then
+		return 0
+	fi
+	return 1
+}
+
+link_but_cli() {
+	local source="$1"
+	ln -sf "$source" "$BIN_DIR/but"
+	# Keep a gitbutler compat symlink for legacy references
+	ln -sf "$source" "$BIN_DIR/gitbutler"
+}
+
 ensure_gitbutler_binary() {
-	if [[ -x "$BIN_DIR/gitbutler" ]]; then
+	# Check if already linked and working
+	if [[ -x "$BIN_DIR/but" ]] && verify_but_cli "$BIN_DIR/but"; then
 		return
 	fi
 
+	# Existing link may be stale; remove and re-resolve
+	rm -f "$BIN_DIR/but" "$BIN_DIR/gitbutler" 2>/dev/null || true
+
+	# Check system PATH for `but` (current CLI name)
 	local existing
+	existing="$(find_system_binary but)"
+	if [[ -n "$existing" && -x "$existing" ]] && verify_but_cli "$existing"; then
+		log "Linking existing but CLI from $existing"
+		link_but_cli "$existing"
+		return
+	fi
+
+	# Check system PATH for `gitbutler` (legacy CLI name)
 	existing="$(find_system_binary gitbutler)"
-	if [[ -n "$existing" && -x "$existing" ]]; then
-		log "Linking existing gitbutler from $existing"
-		ln -sf "$existing" "$BIN_DIR/gitbutler"
+	if [[ -n "$existing" && -x "$existing" ]] && verify_but_cli "$existing"; then
+		log "Linking existing gitbutler CLI from $existing"
+		link_but_cli "$existing"
 		return
 	fi
 
 	case "$(uname -s)" in
 	Darwin)
 		for candidate in \
+			"/Applications/GitButler.app/Contents/MacOS/but" \
 			"/Applications/GitButler.app/Contents/MacOS/gitbutler" \
+			"$HOME/Applications/GitButler.app/Contents/MacOS/but" \
 			"$HOME/Applications/GitButler.app/Contents/MacOS/gitbutler"; do
-			if [[ -x "$candidate" ]]; then
-				log "Linking existing gitbutler app from $candidate"
-				ln -sf "$candidate" "$BIN_DIR/gitbutler"
+			if [[ -x "$candidate" ]] && verify_but_cli "$candidate"; then
+				log "Linking GitButler CLI from $candidate"
+				link_but_cli "$candidate"
 				return
 			fi
 		done
@@ -176,10 +206,14 @@ ensure_gitbutler_binary() {
 		if command -v mdfind >/dev/null 2>&1; then
 			local app_path
 			app_path="$(mdfind 'kMDItemCFBundleIdentifier == "com.gitbutler.app"' | head -n 1)"
-			if [[ -n "$app_path" && -x "$app_path/Contents/MacOS/gitbutler" ]]; then
-				log "Linking existing gitbutler app from $app_path"
-				ln -sf "$app_path/Contents/MacOS/gitbutler" "$BIN_DIR/gitbutler"
-				return
+			if [[ -n "$app_path" ]]; then
+				for bin_name in but gitbutler; do
+					if [[ -x "$app_path/Contents/MacOS/$bin_name" ]] && verify_but_cli "$app_path/Contents/MacOS/$bin_name"; then
+						log "Linking GitButler CLI from $app_path"
+						link_but_cli "$app_path/Contents/MacOS/$bin_name"
+						return
+					fi
+				done
 			fi
 		fi
 
@@ -187,15 +221,17 @@ ensure_gitbutler_binary() {
 			log "Installing GitButler with Homebrew"
 			brew list --cask gitbutler >/dev/null 2>&1 || brew install --cask gitbutler
 			for candidate in \
+				"/Applications/GitButler.app/Contents/MacOS/but" \
 				"/Applications/GitButler.app/Contents/MacOS/gitbutler" \
+				"$HOME/Applications/GitButler.app/Contents/MacOS/but" \
 				"$HOME/Applications/GitButler.app/Contents/MacOS/gitbutler"; do
-				if [[ -x "$candidate" ]]; then
-					ln -sf "$candidate" "$BIN_DIR/gitbutler"
+				if [[ -x "$candidate" ]] && verify_but_cli "$candidate"; then
+					link_but_cli "$candidate"
 					return
 				fi
 			done
 		fi
-		warn "GitButler was not found after Homebrew install; install it manually if needed"
+		warn "GitButler CLI (but) was not found after Homebrew install; install it manually if needed"
 		;;
 	*)
 		warn "Automatic GitButler install is not configured for $(uname -s); install it manually if needed"
@@ -450,7 +486,7 @@ post_init_notes() {
 
 verify_installs() {
 	local missing=0
-	local tools=(mise bun openspec br bv entire trunk linctl sem sg ast-grep)
+	local tools=(mise bun openspec br bv entire trunk linctl sem sg ast-grep but)
 
 	for tool in "${tools[@]}"; do
 		if [[ ! -x "$BIN_DIR/$tool" ]]; then

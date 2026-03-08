@@ -100,7 +100,7 @@ Use only when the human explicitly says **Full Yolo**.
 - Use TDD for behavior changes.
 - Use `sem diff` for review whenever possible.
 - Use `mise` for tasks, tools, and env management.
-- Run `entire enable` when starting a new project unless it is already enabled.
+- Run `entire enable`, `openspec init`, `br init` when starting a new project unless they are already enabled.
 - Keep temporary artifacts in `scratchpad/` and durable docs in `docs/`.
 
 ## Assume Yes Unless Specified
@@ -148,7 +148,7 @@ Ask the human before:
 
 - Never treat Yolo or Full Yolo as implicit.
 - Never bypass hooks or verification with `--no-verify`.
-- Never use `jj` workflows in this repository.
+- Never use `jj` or `git` workflows in this repository, use only the `but` cli or ask the human to use GitButler for branch management.
 - Never use plain `grep` or regex-only search as the primary tool for code search when `sg` can do the job.
 - Never claim verification that you did not actually run.
 - Never delete failing tests to make a suite pass.
@@ -210,14 +210,87 @@ Ask the human before:
 ### GitButler
 
 - Use for parallel branch orchestration and virtual-branch workflows.
-- Prefer GitButler over `jj` for concurrent variants in this repository.
-- In this repo, dirty work on `gitbutler/workspace` is acceptable when the human explicitly allows it.
+- Prefer GitButler over `jj` for concurrent variants in this repository. The `but` cli is your version control entrypoint, the human also has a UI available.
+- In this repo, the trunk branch is always `gitbutler/workspace`, virtual branches will commonly be named t-branch-N. Agents should work on gitbutler/workspace, the virtual branches will be largely managed by the human unless instructed to cherrypick or perform another git op.
+
+### mcphub.nvim (Neovim MCP Client)
+
+- Use for integrating MCP servers into Neovim editing workflows.
+- Plugin: [ravitemer/mcphub.nvim](https://github.com/ravitemer/mcphub.nvim) — native Lua MCP client and proxy/aggregator.
+- Runs a local hub process (`mcp-hub`) that manages server lifecycle, multiplexing all configured MCP servers behind a single SSE/HTTP endpoint (`localhost:37373/mcp`).
+- Supports STDIO, SSE, and Streamable-HTTP transports.
+
+#### Installation (lazy.nvim)
+
+```lua
+{
+    "ravitemer/mcphub.nvim",
+    dependencies = { "nvim-lua/plenary.nvim" },
+    build = "npm install -g mcp-hub@latest",
+    config = function()
+        require("mcphub").setup({
+            port = 37373,
+            config = vim.fn.expand("~/.config/mcphub/servers.json"),
+        })
+    end,
+}
+```
+
+#### Server Registration
+
+Three methods for registering MCP servers, checked in this order:
+
+1. **Global config**: `~/.config/mcphub/servers.json` — standard MCP JSON format, shared across projects.
+2. **Project-local config**: `.mcphub/servers.json`, `.vscode/mcp.json`, or `.cursor/mcp.json` — scoped to the repo.
+3. **Native Lua servers**: Define MCP servers directly in Lua within the `setup()` call — no external process needed.
+
+#### Native Lua Servers
+
+Native Lua servers run inside the Neovim process and have direct access to the Neovim API. Use these for editor-aware tooling (buffer inspection, LSP queries, terminal management).
+
+```lua
+require("mcphub").setup({
+    native_servers = {
+        my_server = {
+            name = "my_server",
+            capabilities = {
+                tools = {
+                    {
+                        name = "get_buffer_count",
+                        description = "Get number of open buffers",
+                        handler = function(req, res)
+                            local count = #vim.api.nvim_list_bufs()
+                            return res:text("Open buffers: " .. count):send()
+                        end,
+                    },
+                },
+            },
+        },
+    },
+})
+```
+
+Two native servers ship built-in:
+- **Neovim Server**: File operations, terminal control, LSP integration.
+- **MCPHub Server**: Plugin and server management from within the editor.
+
+#### Commands and API
+
+- `:MCPHub` — Opens the management UI (view servers, toggle, inspect tools/resources).
+- `require("mcphub").get_hub_instance()` — Programmatic access to the hub.
+- `.add_tool(server, tool_spec)` — Register tools at runtime.
+- `.on(event, callback)` — Subscribe to hub lifecycle events.
+
+#### Agent Integration
+
+- Agents running inside Neovim (via chat plugins or inline completion) can call MCP tools through mcphub without spawning separate server processes.
+- For agent workflows that need both Neovim context and external MCP servers, mcphub acts as the single aggregation point — configure external servers in `servers.json` and editor-aware servers as native Lua servers.
 
 ## Testing and Verification
 
 - Unit + integration + end-to-end coverage is the default expectation for touched behavior.
 - Do not mock the behavior under test.
-- Use real integration paths where practical.
+- Use real integration paths whenever practical.
 - Treat flaky tests, suspicious logs, and unexplained failures as defects to resolve.
 
 ### Minimum compressed verification
@@ -227,6 +300,7 @@ During iteration, the compressed check should include the smallest meaningful su
 - targeted tests for touched behavior
 - `sem diff` review
 - lint/type/build task(s) for the touched surface
+- creating a mise task for additional human verification or to compress multiple suite outputs with sense-making names for the verification.
 
 ### Full verification before handoff
 
@@ -247,3 +321,13 @@ Before handoff/end of session:
    - any blockers or risks
 
 Work is not complete until the actual verification state is explicitly reported.
+
+## Typical Workflow Ochestration order
+
+- human may provide additional steering or prompting, this should be reflected as an openspec changeset
+- once proprosal is approved and tasks.md are generated for ALL changesets in the wave, codify tasks into br workstreams, maximally paralell, with correct dependencies for blocking tasks.
+- as the primary model, create failing tests, function and variable names, and docstrings for each file to be created in the workstreams. make sure this matches conventions with the codebase for naming and code style, such as using an apimanager wrapper for ease of use in api versioning, hoisting enums or using or creating classes for reusable patterns. match convention with the codebase and follow code best practices a la Peter Norvig.
+- next, deploy parallel subagents with smaller models (typically 2-5, at least 1 per workstream) to work through the TDD workflow for each available bead (red > green > refactor if needed until full greens)
+- compressed verification by the main model (create a mise task to verify test output against spec, use sem diff to investigate discrepancies)
+- goto 1 by creating a series of changesets for the next stage, may wish to consult with the human
+- version control will be handled by gitbutler, you can use the `but` cli ( `but branch new`, for as many versions as are appropriate. be sure to name them appropriately so it's easy to tell what the parallel agent is working on.) to create virtual branches for subagents if there's a tricky ticket that is worth comparing the results of multiple subagents on.
