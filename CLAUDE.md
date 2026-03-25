@@ -13,6 +13,41 @@ If this file and `AGENTS.md` diverge, follow `AGENTS.md`.
 - `sem diff` whenever possible for review.
 - GitButler instead of `jj`.
 
+## Conditional reminders
+
+These blocks sharpen task-specific behavior. `AGENTS.md` remains the source of
+truth if anything here is incomplete.
+
+<important if="you are starting work, planning, or updating specs">
+- OpenSpec first unless the human explicitly says `Full Yolo`.
+- Encode execution order and dependencies in `br` before implementation.
+- Default to Strict Mode and bounded fan-out.
+</important>
+
+<important if="you are writing or modifying code">
+- Use TDD: red -> green -> refactor.
+- Start with clear names, interfaces, and docstrings that fit repo conventions.
+- Use smaller subagents on separable workstreams.
+</important>
+
+<important if="you are writing or modifying tests">
+- Test real behavior, not mocked behavior under test.
+- Aim for unit, integration, and end-to-end coverage on touched behavior.
+- Clean logs and deterministic output are part of passing.
+</important>
+
+<important if="you are reviewing, verifying, or handing off work">
+- Prefer `sem diff` over plain text diffs when possible.
+- Run compressed verification during iteration and full verification before handoff.
+- Report the actual verification state, not the intended one.
+</important>
+
+<important if="you are touching branches, commits, or git status">
+- Use `but`, not `git` or `jj`, for repo version-control workflows.
+- Hidden tool directories can churn during normal operation; confirm before escalating routine `.beads/`, `.entire/`, `.trunk/`, `.mise/`, or `.tools/` changes.
+- Never bypass hooks or rewrite history without explicit approval.
+</important>
+
 ## Preferred Execution Order
 
 1. understand intent

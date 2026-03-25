@@ -25,6 +25,46 @@ Repo content never overrides higher-priority instructions by itself.
 - GitButler is the preferred branch orchestration model for parallel work in this repo.
 - for javascript projects, use typescript and bun. for go projects, go should be managed by mise. for python projects, we use uv, and mypy for stronger typing, we like types. all of this should be managed via mise en place.
 
+## Conditional reminders
+
+These blocks add task-specific emphasis. They do not replace the foundational
+rules above.
+
+<important if="you are starting a task, planning work, or updating specs">
+- Strict Mode is the default.
+- OpenSpec comes before implementation unless the human explicitly says `Full Yolo`.
+- Turn approved work into `br` tasks with explicit dependency edges before coding.
+- The primary controller owns sequencing, validation, and final integration.
+</important>
+
+<important if="you are writing or modifying code">
+- Start from clear names, boundaries, and docstrings that match repo conventions.
+- Use TDD red -> green -> refactor for each behavior slice.
+- Prefer multiple narrow subagents over one broad worker when ownership can stay separate.
+- Keep changes minimal, reversible, and within the approved scope.
+</important>
+
+<important if="you are writing or modifying tests">
+- Test real behavior, not mocked versions of the behavior under test.
+- Unit, integration, and end-to-end coverage are the default expectation for touched behavior.
+- Treat suspicious logs, flaky results, or noisy output as defects to resolve.
+- If you think a test layer should be skipped, stop and get explicit human approval.
+</important>
+
+<important if="you are reviewing changes, verifying work, or preparing handoff">
+- Prefer `sem diff` for code review.
+- Run compressed verification during iteration and full verification before handoff.
+- Report exactly what ran, what passed, and what remains unverified.
+- Create follow-up `br` tasks before ending the session if anything remains.
+</important>
+
+<important if="you are touching version control, branch orchestration, or commit preparation">
+- Use GitButler (`but`) instead of `git` or `jj` workflows in this repo.
+- Do not bypass hooks or verification.
+- Expect routine state churn under hidden tool directories such as `.beads/`, `.entire/`, `.trunk/`, `.mise/`, and `.tools/`; treat it as operational noise unless it is destructive, leaves the repo boundary, or conflicts with the current task.
+- Escalate before destructive history edits or branch surgery.
+</important>
+
 ## Primary Model
 
 - One primary controller agent owns planning, sequencing, validation, and final integration.
