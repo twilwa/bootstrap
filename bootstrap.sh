@@ -1,7 +1,20 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-ROOT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
+SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd -P)"
+TEMPLATE_DIR="$SCRIPT_DIR"
+SUPERPROJECT_ROOT="$(git -C "$TEMPLATE_DIR" rev-parse --show-superproject-working-tree 2>/dev/null || true)"
+
+if [[ -n "$SUPERPROJECT_ROOT" ]]; then
+	ROOT_DIR="$(cd -- "$SUPERPROJECT_ROOT" && pwd -P)"
+	SUBMODULE_MODE=1
+	SUBMODULE_PATH="${TEMPLATE_DIR#$ROOT_DIR/}"
+else
+	ROOT_DIR="$TEMPLATE_DIR"
+	SUBMODULE_MODE=0
+	SUBMODULE_PATH=""
+fi
+
 TOOLS_DIR="$ROOT_DIR/.tools"
 BIN_DIR="$TOOLS_DIR/bin"
 MISE_DIR="$ROOT_DIR/.mise"
@@ -14,6 +27,20 @@ NON_INTERACTIVE=0
 OPENSPEC_TOOLS="${OPENSPEC_TOOLS:-}"
 ENTIRE_AGENT="${ENTIRE_AGENT:-claude-code}"
 ENTIRE_STRATEGY="${ENTIRE_STRATEGY:-manual-commit}"
+
+SYNC_FILES=(
+	AGENTS.md
+	CLAUDE.md
+	bootstrap.sh
+	mise.toml
+)
+
+SYNC_DIRS=(
+	.claude
+	.codex
+	.trunk
+	openspec
+)
 
 log() {
 	printf '[bootstrap] %s\n' "$*"
@@ -28,6 +55,10 @@ die() {
 	exit 1
 }
 
+timestamp() {
+	date +"%Y%m%d%H%M%S"
+}
+
 usage() {
 	cat <<USAGE
 Usage: ./bootstrap.sh [options]
@@ -39,6 +70,10 @@ Options:
   --openspec-tools=<list>      OpenSpec tools list (e.g. codex,claude)
   --entire-agent=<name>        Entire agent name (default: claude-code)
   -h, --help                   Show this help
+
+When run from a git submodule, bootstrap installs tooling into the parent repo,
+syncs the template config to that repo, and removes the template submodule
+after a successful run.
 USAGE
 }
 
@@ -104,6 +139,108 @@ find_system_binary() {
 	PATH="$p" command -v "$name" 2>/dev/null || true
 }
 
+backup_path() {
+	local target="$1"
+	printf '%s.bootstrap-backup.%s.%s' "$target" "$(timestamp)" "$$"
+}
+
+sync_file() {
+	local source="$1"
+	local target="$2"
+
+	[[ -f "$source" ]] || return 0
+
+	mkdir -p "$(dirname "$target")"
+
+	if [[ -f "$target" ]] && cmp -s "$source" "$target"; then
+		return 0
+	fi
+
+	if [[ -e "$target" ]]; then
+		local backup
+		backup="$(backup_path "$target")"
+		cp -R "$target" "$backup"
+		log "Backed up $target to $backup"
+	fi
+
+	cp "$source" "$target"
+	if [[ -x "$source" ]]; then
+		chmod +x "$target"
+	fi
+	log "Synced $(basename "$source") to $target"
+}
+
+sync_directory() {
+	local source="$1"
+	local target="$2"
+	local path rel
+
+	[[ -d "$source" ]] || return 0
+
+	mkdir -p "$target"
+
+	while IFS= read -r path; do
+		rel="${path#$source/}"
+		if [[ -d "$path" ]]; then
+			mkdir -p "$target/$rel"
+			continue
+		fi
+		sync_file "$path" "$target/$rel"
+	done < <(find "$source" -mindepth 1 | LC_ALL=C sort)
+}
+
+ensure_seed_dirs() {
+	mkdir -p "$ROOT_DIR/docs" "$ROOT_DIR/scratchpad"
+	touch "$ROOT_DIR/docs/.gitkeep" "$ROOT_DIR/scratchpad/.gitkeep"
+}
+
+ensure_gitignore_block() {
+	local gitignore="$ROOT_DIR/.gitignore"
+	local marker_begin="# Bootstrap runtime data"
+
+	touch "$gitignore"
+
+	if grep -Fq "$marker_begin" "$gitignore"; then
+		return
+	fi
+
+	cat >>"$gitignore" <<'EOF'
+
+# Bootstrap runtime data
+.mise/
+.tools/
+.entire/
+.jj/
+.beads/dolt-server.*
+scratchpad/*
+!scratchpad/.gitkeep
+# End bootstrap runtime data
+EOF
+
+	log "Updated $gitignore with bootstrap runtime ignores"
+}
+
+sync_template_into_root() {
+	local item
+
+	ensure_seed_dirs
+	ensure_gitignore_block
+
+	if [[ "$SUBMODULE_MODE" -eq 0 ]]; then
+		return
+	fi
+
+	log "Submodule mode detected: syncing template config from $TEMPLATE_DIR to $ROOT_DIR"
+
+	for item in "${SYNC_FILES[@]}"; do
+		sync_file "$TEMPLATE_DIR/$item" "$ROOT_DIR/$item"
+	done
+
+	for item in "${SYNC_DIRS[@]}"; do
+		sync_directory "$TEMPLATE_DIR/$item" "$ROOT_DIR/$item"
+	done
+}
+
 ensure_local_mise() {
 	if [[ -x "$MISE_BIN" ]]; then
 		return
@@ -159,20 +296,16 @@ verify_but_cli() {
 link_but_cli() {
 	local source="$1"
 	ln -sf "$source" "$BIN_DIR/but"
-	# Keep a gitbutler compat symlink for legacy references
 	ln -sf "$source" "$BIN_DIR/gitbutler"
 }
 
 ensure_gitbutler_binary() {
-	# Check if already linked and working
 	if [[ -x "$BIN_DIR/but" ]] && verify_but_cli "$BIN_DIR/but"; then
 		return
 	fi
 
-	# Existing link may be stale; remove and re-resolve
 	rm -f "$BIN_DIR/but" "$BIN_DIR/gitbutler" 2>/dev/null || true
 
-	# Check system PATH for `but` (current CLI name)
 	local existing
 	existing="$(find_system_binary but)"
 	if [[ -n "$existing" && -x "$existing" ]] && verify_but_cli "$existing"; then
@@ -181,7 +314,6 @@ ensure_gitbutler_binary() {
 		return
 	fi
 
-	# Check system PATH for `gitbutler` (legacy CLI name)
 	existing="$(find_system_binary gitbutler)"
 	if [[ -n "$existing" && -x "$existing" ]] && verify_but_cli "$existing"; then
 		log "Linking existing gitbutler CLI from $existing"
@@ -219,7 +351,6 @@ ensure_gitbutler_binary() {
 
 		if command -v brew >/dev/null 2>&1; then
 			log "Installing GitButler with Homebrew"
-			# Use reinstall to handle existing app gracefully (install fails if app already exists)
 			brew reinstall --cask gitbutler
 			for candidate in \
 				"/Applications/GitButler.app/Contents/MacOS/but" \
@@ -501,15 +632,51 @@ verify_installs() {
 	fi
 }
 
-main() {
-	parse_args "$@"
+cleanup_template_submodule() {
+	if [[ "$SUBMODULE_MODE" -ne 1 ]]; then
+		return
+	fi
+
+	if [[ -z "$SUBMODULE_PATH" ]]; then
+		warn "Submodule mode was detected, but the submodule path could not be resolved"
+		return
+	fi
+
+	if ! git -C "$ROOT_DIR" rev-parse --git-dir >/dev/null 2>&1; then
+		warn "Skipping template cleanup because $ROOT_DIR is not a git repository"
+		return
+	fi
+
+	log "Cleaning up bootstrap template submodule at $SUBMODULE_PATH"
 	cd "$ROOT_DIR"
 
+	git -C "$ROOT_DIR" submodule deinit -f -- "$SUBMODULE_PATH" >/dev/null 2>&1 || true
+	git -C "$ROOT_DIR" config --remove-section "submodule.$SUBMODULE_PATH" >/dev/null 2>&1 || true
+
+	if [[ -f "$ROOT_DIR/.gitmodules" ]]; then
+		git -C "$ROOT_DIR" config -f "$ROOT_DIR/.gitmodules" --remove-section "submodule.$SUBMODULE_PATH" >/dev/null 2>&1 || true
+		if ! grep -q '[^[:space:]]' "$ROOT_DIR/.gitmodules"; then
+			rm -f "$ROOT_DIR/.gitmodules"
+		fi
+	fi
+
+	rm -rf "$ROOT_DIR/.git/modules/$SUBMODULE_PATH"
+	rm -rf "$TEMPLATE_DIR"
+
+	log "Template submodule removed from the working tree"
+	log "Remove the deleted gitlink from version control when you commit the parent repo"
+}
+
+main() {
+	parse_args "$@"
+
+	sync_template_into_root
+
+	cd "$ROOT_DIR"
 	setup_dirs
 	setup_env
 	ensure_local_mise
 
-	# Always refresh mise-managed tools so init commands can rely on local binaries.
 	ensure_mise_tools
 
 	if [[ "$INSTALL_PHASE" -eq 1 ]]; then
@@ -527,6 +694,8 @@ main() {
 	verify_installs
 	log "Bootstrap complete"
 	log "Local binaries: $BIN_DIR"
+
+	cleanup_template_submodule
 }
 
 main "$@"
