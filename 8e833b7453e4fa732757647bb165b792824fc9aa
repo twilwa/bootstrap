@@ -1,0 +1,23 @@
+bootstrap.sh
+  062a00930f9d6a4d 148,373
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.1.22",
+  "base_commit_sha": "8e833b7453e4fa732757647bb165b792824fc9aa",
+  "prompts": {
+    "062a00930f9d6a4d": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "46158730-3e7b-406e-9cac-0ceb6a3803fb",
+        "model": "claude-sonnet-4-6"
+      },
+      "human_author": "twilwa <spywarezzz@proton.me>",
+      "messages": [],
+      "total_additions": 2,
+      "total_deletions": 26,
+      "accepted_lines": 2,
+      "overriden_lines": 0
+    }
+  }
+}
