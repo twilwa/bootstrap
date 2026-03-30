@@ -3,7 +3,28 @@
 This file is the Claude-facing quick reference for this repository.
 If this file and `AGENTS.md` diverge, follow `AGENTS.md`.
 
-## Default Behavior
+- [Agent Operating Manual](#agent-operating-manual)
+  - [Primary Model](#primary-model)
+  - [Work Modes](#work-modes)
+    - [Strict Mode (default)](#strict-mode-default)
+    - [Yolo Mode (explicit opt-in)](#yolo-mode-explicit-opt-in)
+  - [Mandatory Development Flow (Strict)](#mandatory-development-flow-strict)
+  - [Naming and Comments](#naming-and-comments)
+    - [Naming rules](#naming-rules)
+    - [Preferred style](#preferred-style)
+    - [Comments](#comments)
+  - [Testing Policy](#testing-policy)
+  - [Tooling Quick Reference](#tooling-quick-reference)
+    - [OpenSpec](#openspec)
+    - [beads (`br`) and beads viewer (`bv`)](#beads-br-and-beads-viewer-bv)
+    - [sem](#sem)
+    - [ast-grep (`sg`)](#ast-grep-sg)
+    - [When deploying subagents that modify the codebase](#when-deploying-subagents-that-modify-the-codebase)
+    - [When subagents have completed their work (primary/orchestrator)](#when-subagents-have-completed-their-work-primaryorchestrator)
+    - [mise](#mise)
+  - [Workspace Hygiene](#workspace-hygiene)
+  - [Session Completion Protocol](#session-completion-protocol)
+  <!--toc:end-->
 
 - Strict Mode by default.
 - OpenSpec by default.
@@ -128,15 +149,7 @@ truth if anything here is incomplete.
 - Preferred branch orchestration model here.
 - No `jj` workspaces, rebases, or parallelize flows.
 
-## Safety Rules
-
-- Do not assume Yolo/Full Yolo.
-- Do not bypass verification.
-- Do not rewrite history unless explicitly asked.
-- Do not let subagents overlap file ownership without coordination.
-- Do not claim checks you did not run.
-
-## Ask First
+## Workspace Hygiene
 
 - dependency changes
 - CI/release changes

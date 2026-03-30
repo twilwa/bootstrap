@@ -240,12 +240,7 @@ Ask the human before:
 - Use for human/team-level planning, reporting, and Linear workflows.
 - `br` remains the repo-local execution source of truth.
 
-### `mise`
-
-- Use always for toolchain sync, task execution, and environment management.
-- Prefer `mise run <task>` over long ad-hoc command strings.
-
-### `entire`
+## Workspace Hygiene
 
 - Use `entire enable` when initializing a new project so agent context and traces stay recoverable.
 

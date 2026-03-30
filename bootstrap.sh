@@ -280,7 +280,7 @@ ensure_mise_tools() {
 	log "Installing tools from mise.toml"
 	mise_cmd install -y
 
-	for tool in mise bun trunk openspec ast-grep sg; do
+	for tool in mise go bun uv jj openspec ast-grep sg; do
 		link_mise_binary "$tool"
 	done
 }
@@ -598,14 +598,14 @@ init_entire() {
 	fi
 }
 
-init_trunk() {
-	if [[ -f "$ROOT_DIR/.trunk/trunk.yaml" ]]; then
-		log "Trunk already initialized"
+init_jj() {
+	if [[ -d "$ROOT_DIR/.jj" ]]; then
+		log "Jujutsu already initialized"
 		return
 	fi
 
-	log "Initializing Trunk"
-	mise_cmd exec -- trunk init -y
+	log "Initializing Jujutsu colocated repo"
+	mise_cmd exec -- jj git init --colocate "$ROOT_DIR"
 }
 
 post_init_notes() {
@@ -618,7 +618,7 @@ post_init_notes() {
 
 verify_installs() {
 	local missing=0
-	local tools=(mise bun openspec br bv entire trunk linctl sem sg ast-grep but)
+	local tools=(mise go bun uv openspec br bv entire jj linctl sem sg ast-grep)
 
 	for tool in "${tools[@]}"; do
 		if [[ ! -x "$BIN_DIR/$tool" ]]; then
@@ -687,7 +687,7 @@ main() {
 		init_openspec
 		init_beads
 		init_entire
-		init_trunk
+		init_jj
 		post_init_notes
 	fi
 
